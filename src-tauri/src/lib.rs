@@ -3,6 +3,9 @@
 // Authors:  Ojos Project & Iris contributors
 // License:  GNU General Public License v3.0
 mod helpers;
+mod motion;
+
+use motion::MotionState;
 use helpers::data_dir;
 use std::{env, process};
 use tauri::Manager;
@@ -16,8 +19,14 @@ use tauri_plugin_autostart::MacosLauncher;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default()
+        .manage(MotionState::new()) // Add state
+        .invoke_handler(tauri::generate_handler![
+            motion::process_frame
+        ])
         .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init());
+
+        
 
     #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
     {
