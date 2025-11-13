@@ -29,47 +29,35 @@ pub fn process_frame(
     frame_data: String,
     state: State<MotionState>,
 ) -> Result<MotionResult, String> {
-    // Remove base64 prefix if present
-    let cleaned = frame_data
-        .strip_prefix("data:image/png;base64,")
-        .unwrap_or(&frame_data);
+    // Decode base64 image
+    let img_data = base64::decode(
+        frame_data.strip_prefix("data:image/png;base64,").unwrap_or(&frame_data)
+    ).map_err(|e| e.to_string())?;
     
-    // Decode base64 to bytes
-    let img_data = base64::engine::general_purpose::STANDARD
-        .decode(cleaned)
-        .map_err(|e| format!("Base64 decode error: {}", e))?;
-    
-    // Load image from bytes
     let img = image::load_from_memory(&img_data)
-        .map_err(|e| format!("Image load error: {}", e))?;
+        .map_err(|e| e.to_string())?;
     
-    // Convert to grayscale for comparison
     let gray = img.to_luma8();
     
     // Get previous frame
     let mut prev_lock = state.previous_frame.lock().unwrap();
     
-    // Calculate motion intensity
     let motion_intensity = if let Some(prev) = prev_lock.as_ref() {
         let prev_gray = prev.to_luma8();
         calculate_frame_difference(&gray, &prev_gray)
     } else {
-        0.0 // First frame, no comparison possible
+        0.0
     };
     
     // Store current frame for next comparison
     *prev_lock = Some(img);
     
-    // Get timestamp
-    let timestamp = chrono::Utc::now().timestamp();
-    
     Ok(MotionResult {
-        motion_detected: motion_intensity > 5.0, // Adjust this threshold
+        motion_detected: motion_intensity > THRESHOLD, // Threshold
         intensity: motion_intensity,
-        timestamp,
+        timestamp: chrono::Utc::now().timestamp(),
     })
 }
-
 fn calculate_frame_difference(
     current: &image::GrayImage,
     previous: &image::GrayImage,
