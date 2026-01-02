@@ -21,6 +21,8 @@ export async function getConfig(): Promise<Config> {
     const template: Config = {
       appearance: null,
       onboarding_completed: false,
+      motion_detection_enabled: false,
+      eye_tracking_enabled: false,
     };
 
     await writeTextFile(configPath, JSON.stringify(template));
@@ -40,8 +42,10 @@ export async function completeOnboarding() {
   await writeTextFile(
     configPath,
     JSON.stringify({
+      ...config, 
+      // ... is the spread operator, implicitly getting all unnamed properties
+      // in addition to the one we explicitly define
       onboarding_completed: true,
-      appearance: config.appearance,
     } as Config),
   );
 }
@@ -54,8 +58,36 @@ export async function setAppearanceConfig(value: "light" | "dark" | null) {
   await writeTextFile(
     configPath,
     JSON.stringify({
+      ...config,
       onboarding_completed: config.onboarding_completed,
-      appearance: value,
+    } as Config),
+  );
+}
+
+export async function setMotionDetectionConfig(enabled:boolean) {
+  const configDir = await userConfigDir();
+  const configPath = await join(configDir, "config.json");
+  const config = await getConfig();
+
+  await writeTextFile(
+    configPath,
+    JSON.stringify({
+      ...config,
+      motion_detection_enabled: enabled,
+    } as Config),
+  );
+}
+
+export async function setEyeTrackingConfig(enabled:boolean) {
+  const configDir = await userConfigDir();
+  const configPath = await join(configDir, "config.json");
+  const config = await getConfig();
+
+  await writeTextFile(
+    configPath,
+    JSON.stringify({
+      ...config,
+      eye_tracking_enabled: enabled,
     } as Config),
   );
 }

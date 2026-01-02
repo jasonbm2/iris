@@ -7,6 +7,8 @@
 export type Config = {
   onboarding_completed: boolean;
   appearance: "light" | "dark" | null;
+  motion_detection_enabled: boolean;
+  eye_tracking_enabled: boolean;
 };
 
 export type DataPackReceipt = {

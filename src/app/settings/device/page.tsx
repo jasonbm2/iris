@@ -15,7 +15,12 @@ import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import styles from "../page.module.css";
 import { Config } from "@/types/settings";
-import { getConfig, setAppearanceConfig } from "@/utils/settings";
+import {
+  getConfig,
+  setAppearanceConfig,
+  setMotionDetectionConfig,
+  setEyeTrackingConfig
+} from "@/utils/settings";
 
 export default function Page() {
   const [kioskEnabled, setKioskEnabled] = useState(false);
@@ -76,7 +81,7 @@ export default function Page() {
       </SettingSection>
       <SettingSection
         label="Kiosk mode"
-        description="Enabling Kiosk mode will start Iris in fullscreen on system startup."
+        description="Start Iris in fullscreen on system startup."
       >
         <Toggle
           icons={false}
@@ -93,6 +98,47 @@ export default function Page() {
               await disable();
               await window.setFullscreen(false);
             }
+          }}
+        />
+      </SettingSection>
+      <SettingSection
+        label="Eye Tracking"
+        description="Allow user to use their eyes to navigate Palliaview."
+      >
+        <Toggle
+          icons={false}
+          checked={config?.eye_tracking_enabled ?? false}  // the ?? means "if eye_tracking_enabled == null, set it = false"
+          className="toggle"
+          onChange={async (e) => {
+            const newConfig = {
+              ...config,
+              eye_tracking_enabled: e.target.checked,
+            } as Config;
+            
+            setConfig(newConfig);
+            await setEyeTrackingConfig(e.target.checked); // comes from utils/settings.ts
+            // add backend connection/implementation here,
+            // (enable() & disable())
+          }}
+      />
+      </SettingSection>
+      <SettingSection
+        label="Motion Detection"
+        description="Detect motion while Palliaview is inactive and save a log locally."
+      >
+        <Toggle
+          icons={false}
+          checked={config?.motion_detection_enabled ?? false}
+          className="toggle"
+          onChange={async (e) => {
+            const newConfig = {
+              ...config,
+              motion_detection_enabled: e.target.checked,
+            } as Config;
+
+            setConfig(newConfig);
+            await setMotionDetectionConfig(e.target.checked);
+            // add backend connection/implementation here
           }}
         />
       </SettingSection>
