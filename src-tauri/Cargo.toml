@@ -30,6 +30,10 @@ tauri-plugin-dialog = "2.4.0"
 tauri-plugin-process = "2.3.0"
 tauri-plugin-opener = "2.5.0"
 tauri-plugin-sql = { version = "2.3.0", features = ["sqlite"] }
+image = "0.25.4"
+imageproc = "0.25"
+base64 = "0.22.1"
+chrono = "0.4"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

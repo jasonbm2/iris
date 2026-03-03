@@ -9,15 +9,26 @@ import styles from "./WebcamRecorder.module.css";
 import { useRouter } from "next/navigation";
 import Dialog from "@/components/Dialog";
 import { saveVideo } from "../_helper";
+import { invoke } from "@tauri-apps/api/core";
+
+interface MotionResult {
+  motion_detected: boolean;
+  intensity: number;
+  timestamp: number;
+}
 
 export default function WebcamRecorder() {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const motionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const [isRecording, setIsRecording] = useState(false);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
+  const [motionData, setMotionData] = useState<MotionResult | null>(null);
 
   const confirmDialog = () => {
     stopRecording();
@@ -32,6 +43,53 @@ export default function WebcamRecorder() {
 
   const closeDialog = () => {
     setShowDialog(false);
+  };
+
+  // Capture frame from video and send to Rust for motion detection
+  const captureAndProcessFrame = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw current video frame to canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // Convert canvas to base64 image
+    const frameData = canvas.toDataURL("image/png");
+
+    try {
+      // Send frame to Rust backend for motion detection
+      const result = await invoke<MotionResult>("process_frame", {
+        frameData: frameData,
+      });
+
+      // Update motion data state
+      setMotionData(result);
+
+      // Log motion detection results... simple for now
+      console.log("Motion Detection Result:", {
+        detected: result.motion_detected,
+        intensity: result.intensity.toFixed(2),
+        timestamp: new Date(result.timestamp * 1000).toISOString(),
+      });
+
+      // add additional logic here based on motion detection
+      if (result.motion_detected) {
+        console.log(
+          `⚠️ Motion detected! Intensity: ${result.intensity.toFixed(2)}`,
+        );
+      }
+    } catch (error) {
+      console.error("Error processing frame:", error);
+    }
   };
 
   useEffect(() => {
@@ -53,12 +111,18 @@ export default function WebcamRecorder() {
         mediaRecorderRef.current = new MediaRecorder(stream);
         // Set up the data available handler to process recorded chunks
         mediaRecorderRef.current.ondataavailable = handleDataAvailable;
+
+        // Start motion detection (capture every 500ms)
+        motionIntervalRef.current = setInterval(() => {
+          captureAndProcessFrame();
+        }, 500);
       } catch (error) {
         console.error("Error accessing the webcam:", error);
       }
     };
 
     startVideo(); // Call the startVideo function to initiate streaming
+
     return () => {
       // Cleanup function to stop all media tracks when component unmounts
       if (mediaRecorderRef.current) {
@@ -121,6 +185,9 @@ export default function WebcamRecorder() {
 
   return (
     <div>
+      {/* Hidden canvas for capturing frames */}
+      <canvas ref={canvasRef} style={{ display: "none" }} />
+
       {/* Video element to display the webcam feed */}
       <video
         className={styles.video_container}
@@ -129,6 +196,27 @@ export default function WebcamRecorder() {
         playsInline
         muted={true}
       />
+
+      {/* Motion detection indicator... maybe put this into its own component */}
+      {motionData && (
+        <div
+          style={{
+            position: "absolute",
+            top: "10px",
+            left: "10px",
+            background: motionData.motion_detected
+              ? "rgba(255, 0, 0, 0.8)"
+              : "rgba(0, 255, 0, 0.8)",
+            color: "white",
+            padding: "10px",
+            borderRadius: "5px",
+          }}
+        >
+          <div>Motion: {motionData.motion_detected ? "DETECTED" : "None"}</div>
+          <div>Intensity: {motionData.intensity.toFixed(2)}</div>
+        </div>
+      )}
+
       {showDialog && (
         <Dialog
           title="You are still recording!"
