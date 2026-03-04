@@ -112,10 +112,11 @@ export default function WebcamRecorder() {
         // Set up the data available handler to process recorded chunks
         mediaRecorderRef.current.ondataavailable = handleDataAvailable;
 
-        // Start motion detection (capture every 500ms)
+        // Start motion detection (capture every 2000ms) 
+        // (was 500, changed for performance)
         motionIntervalRef.current = setInterval(() => {
           captureAndProcessFrame();
-        }, 500);
+        }, 2000);
       } catch (error) {
         console.error("Error accessing the webcam:", error);
       }
@@ -124,6 +125,9 @@ export default function WebcamRecorder() {
     startVideo(); // Call the startVideo function to initiate streaming
 
     return () => {
+      if (motionIntervalRef.current) {
+        clearInterval(motionIntervalRef.current);
+      }
       // Cleanup function to stop all media tracks when component unmounts
       if (mediaRecorderRef.current) {
         mediaRecorderRef.current.stream
